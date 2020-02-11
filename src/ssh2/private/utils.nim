@@ -1,4 +1,4 @@
-import libssh2, types, posix, asyncnet, strformat
+import libssh2, types, posix, asyncnet
 
 proc waitsocket*(session: Session, socket: AsyncSocket): int =
   var

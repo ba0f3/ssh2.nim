@@ -10,7 +10,7 @@ proc main() {.async.} =
   let scp = client.initSCPClient()
   #await scp.uploadFile("LICENSE", "/tmp/LICENSE")
   await scp.downloadFile("/tmp/LICENSE", "TEST")
-  #echo await client.execCommand("ls /tmp")
+  echo await client.execCommand("ls /tmp")
   #echo await client.execCommand("uptime")
 
 

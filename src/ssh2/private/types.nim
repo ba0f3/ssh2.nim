@@ -5,14 +5,15 @@ type
   SSHClient* = ref object of RootObj
     socket*: AsyncSocket
     session*: Session
-    agent*: Agent
 
   SCPClient* = object
     session*: Session
     socket*: AsyncSocket
 
-  #Channel* = object
-  #  impl*: libssh2.Channel
+  SSHChannel* = object
+    impl*: Channel
+    client*: SSHClient
+
 
   SSHException* = object of IOError
   AuthenticationException* = object of SSHException
