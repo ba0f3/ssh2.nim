@@ -8,29 +8,29 @@ proc initSCPClient*(ssh: SSHClient): SCPClient =
 
 proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
   ## Upload a file from the local filesystem to the remote SSH server.
-  var channel: Channel
+  var
+    channel: Channel
+    buffer: array[1024, char]
+    bytesRead: int
+    bytesWrite: cint
+    f: File
   if not localPath.fileExists():
     raise newException(FileNotFoundException, &"{localPath}: No such file or directory")
-  let stat = stat(localPath)
+  let st = stat(localPath)
   while true:
-    channel = scp.session.scpSend(remotePath, stat.st_mode.int and 777, stat.st_size)
+    channel = scp.session.scp_send(remotePath, st.st_mode.int and 0777, st.st_size)
     if channel != nil: break
-    elif scp.session.sessionLastErrno() != LIBSSH2_ERROR_EAGAIN:
+    elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:
       let errmsg = scp.session.getLastErrorMessage()
-      discard channel.channelFree()
+      discard channel.channel_free()
       raise newException(SSHException, &"scp: {remotePath}: {errmsg}")
-
-  var
-    buffer: array[1024, char]
-    f = open(localPath, fmRead)
+  f = open(localPath, fmRead)
   defer: f.close()
   while true:
-    var bytesRead = f.readBuffer(addr buffer, buffer.len)
+    bytesRead = f.readBuffer(addr buffer, buffer.len)
     if bytesRead <= 0: break
-
-    var bytesWrite: cint
     while true:
-      bytesWrite = channel.channelWrite(cast[cstring](addr buffer), bytesRead)
+      bytesWrite = channel.channel_write(addr buffer, bytesRead)
       if bytesWrite == LIBSSH2_ERROR_EAGAIN:
         discard waitsocket(scp.session, scp.socket)
       else:
@@ -38,10 +38,10 @@ proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
     if bytesWrite != bytesRead:
       raise newException(SSHException, &"scp: fail to write data: {bytesWrite} wrote, {bytesRead} expected")
 
-  while channel.channelSendEof() == LIBSSH2_ERROR_EAGAIN: discard
-  while channel.channelWaitEof() == LIBSSH2_ERROR_EAGAIN: discard
-  while channel.channelWaitClosed() == LIBSSH2_ERROR_EAGAIN: discard
-  discard channel.channelFree()
+  wait(channel.channel_send_eof())
+  wait(channel.channel_wait_eof())
+  wait(channel.channel_wait_closed())
+  discard channel.channel_free()
 
 proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
   ## Download a file from the remote SSH server to the local filesystem.
@@ -49,17 +49,18 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
     channel: Channel
     stat: Stat
     bytesRead: int
+    buffer: array[1024, char]
+    f: File
   while true:
-    channel = scp.session.scpRecv(remotePath, addr stat)
-    if channel != nil: break
-    elif scp.session.sessionLastErrno() != LIBSSH2_ERROR_EAGAIN:
+    channel = scp.session.scp_recv2(remotePath, addr stat)
+    if channel != nil:
+      break
+    elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:
       let errmsg = scp.session.getLastErrorMessage()
-      discard channel.channelFree()
+      discard channel.channel_free()
       raise newException(SSHException, &"scp: {remotePath}: {errmsg}")
 
-  var
-    buffer: array[1024, char]
-    f = open(localPath, fmWrite)
+  f = open(localPath, fmWrite)
   defer: f.close()
   while bytesRead < stat.st_size:
     while true:
@@ -68,9 +69,8 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
         bytesLeft = stat.st_size - bytesRead
       if bytesLeft < bytesToRead:
         bytesToRead = bytesLeft
-
-      zeroMem(addr buffer, buffer.len)
-      let rc = channel.channelRead(addr buffer, bytesToRead)
+      #zeroMem(addr buffer, buffer.len)
+      let rc = channel.channel_read(addr buffer, bytesToRead)
       if rc > 0:
         let bytesWrite = f.writeBuffer(addr buffer, rc)
         if bytesWrite != rc:
@@ -80,7 +80,7 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
         discard waitsocket(scp.session, scp.socket)
       else:
         break
-  discard channel.channelFree()
+  discard channel.channel_free()
 
 
 

@@ -10,6 +10,11 @@ type
     session*: Session
     socket*: AsyncSocket
 
+  SFTPClient* = object
+    session*: Session
+    socket*: AsyncSocket
+    sftp_session*: Sftp
+
   SSHChannel* = object
     impl*: Channel
     client*: SSHClient

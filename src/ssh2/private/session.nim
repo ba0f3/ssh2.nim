@@ -16,8 +16,14 @@ proc handshake*(session: Session, fd: SocketHandle) {.inline.} =
     raise newException(SSHException, "Failure establing ssh connection")
 
 proc authPassword*(session: Session, username, password: string): bool =
-  if session.userauth_password(username, password, nil) != 0:
-    raise newException(AuthenticationException, &"Authentication with username {username} and password failed!")
+  while true:
+    let rc = session.userauth_password(username, password, nil)
+    if rc == LIBSSH2_ERROR_EAGAIN:
+      discard
+    elif rc < 0:
+      raise newException(AuthenticationException, &"Authentication with username {username} and password failed!")
+    else:
+      break
   result = true
 
 proc getLastError*(session: Session): (string, int) =

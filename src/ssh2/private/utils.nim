@@ -28,5 +28,7 @@ proc waitsocket*(session: Session, socket: AsyncSocket): int =
 
 proc waitsocket*(s: SSHClient): int {.inline.} = waitsocket(s.session, s.socket)
 
-template ensure*(body: untyped) =
-  while body == LIBSSH2_ERROR_EAGAIN: discard
+template wait*(body: untyped) =
+  while body != LIBSSH2_ERROR_EAGAIN: break
+
+proc `|`*[T](a, b: T): T = cast[T](a or b)

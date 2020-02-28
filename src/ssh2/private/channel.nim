@@ -1,5 +1,4 @@
-import libssh2, asyncnet
-import types, session, utils
+import libssh2, types, session, utils
 
 proc initChannel*(ssh: SSHClient): SSHChannel =
   ## Establish a generic session channel

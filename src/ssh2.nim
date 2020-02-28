@@ -45,9 +45,9 @@ proc execCommand*(s: SSHClient, command: string): Future[(string, string, int)] 
     exitcode = 127
 
   stdout = channel.read()
-  stderr = channel.readError()
+  stderr = channel.read_error()
 
   if channel.close():
-    exitcode = channel.getExitStatus()
+    exitcode = channel.get_exit_status()
   channel.free()
   result = (stdout, stderr, exitcode)
