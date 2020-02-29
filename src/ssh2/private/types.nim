@@ -19,7 +19,6 @@ type
     impl*: Channel
     client*: SSHClient
 
-
   SSHException* = object of IOError
   AuthenticationException* = object of SSHException
   FileNotFoundException* = object of SSHException

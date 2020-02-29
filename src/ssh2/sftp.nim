@@ -1,6 +1,8 @@
 import asyncdispatch, strformat, os, posix, posix_utils
 import libssh2, private/[types, utils, session]
 
+export SftpAttributes
+
 proc initSFTPClient*(ssh: SSHClient): SFTPClient =
   ## Init new SCPClient instance from a SSHClient
   result.session = ssh.session
@@ -85,12 +87,58 @@ proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
       break
   discard handle.sftp_close()
 
-proc mkdir*(client: SFTPClient, path: string, mode: int32 = 0) {.async.} =
+proc mkdir*(client: SFTPClient, path: string, mode: int32 = 0) =
+  ## create a directory on the remote file system
   var mode = mode
   if mode == 0:
     mode = LIBSSH2_SFTP_S_IRWXU or LIBSSH2_SFTP_S_IRGRP or LIBSSH2_SFTP_S_IXGRP or LIBSSH2_SFTP_S_IROTH or LIBSSH2_SFTP_S_IXOTH
 
   wait(client.sftp_session.sftp_mkdir(path, mode))
 
-proc rmdir*(client: SFTPClient, path: string) {.async.} =
+proc rmdir*(client: SFTPClient, path: string) =
+  ## remove an SFTP directory
   wait(client.sftp_session.sftp_rmdir(path))
+
+proc unlink*(client: SFTPClient, path: string) =
+  ## unlink an SFTP file
+  wait(client.sftp_session.sftp_unlink(path))
+
+proc rename*(client: SFTPClient, sourcefile, destfile: string) {.async.} =
+  ## rename an SFTP file
+  wait(client.sftp_session.sftp_rename(sourcefile, destfile))
+
+iterator items*(client: SFTPClient, path: string): tuple[name: string, attributes: SftpAttributes] =
+  var
+    handle: SftpHandle
+    rc: cint
+  while true:
+    handle = client.sftp_session.sftp_opendir(path)
+    if handle != nil: break
+    elif client.session.session_last_errno() == LIBSSH2_ERROR_EAGAIN:
+      discard waitsocket(client.session, client.socket)
+    else:
+      let errmsg = client.session.getLastErrorMessage()
+      discard handle.sftp_close()
+      discard client.sftp_session.sftp_shutdown()
+      raise newException(SSHException, &"sftp: {path}: {errmsg}")
+
+  while true:
+    var
+      name: array[512, char]
+      attrs: SftpAttributes
+    while true:
+      rc = handle.sftp_readdir(addr name, name.len, addr attrs)
+      if rc != LIBSSH2_ERROR_EAGAIN:
+        break
+    if rc > 0:
+      yield ($cast[cstring](addr name), attrs)
+    elif rc == LIBSSH2_ERROR_EAGAIN:
+      discard
+    else:
+      break
+
+proc dir*(client: SFTPClient, path: string): Future[seq[tuple[name: string, attributes: SftpAttributes]]] {.async.} =
+
+  result = @[]
+  for item in client.items(path):
+    result.add(item)
