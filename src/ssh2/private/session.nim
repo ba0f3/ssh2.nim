@@ -29,8 +29,8 @@ proc authPassword*(session: Session, username, password: string): bool =
 proc getLastError*(session: Session): (string, int) =
   var
     errmsg: cstring
-    errlen: int
-  let errcode = session.session_last_error(addr errmsg, errlen, 0)
+    errlen: cint
+  let errcode = session.session_last_error(addr errmsg, addr errlen, 0)
   result = ($errmsg, errcode.int)
 
 proc getLastErrorMessage*(session: Session): string =

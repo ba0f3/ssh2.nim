@@ -5,7 +5,7 @@ proc initChannel*(ssh: SSHClient): SSHChannel =
   result.client = ssh
   while true:
     result.impl = ssh.session.channel_open_session()
-    if result.impl == nil and ssh.session.sessionLastError(nil, 0, 0) == LIBSSH2_ERROR_EAGAIN:
+    if result.impl == nil and ssh.session.session_last_errno() == LIBSSH2_ERROR_EAGAIN:
       discard ssh.waitsocket()
     else:
       break

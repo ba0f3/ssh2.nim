@@ -10,7 +10,7 @@ proc initSFTPClient*(ssh: SSHClient): SFTPClient =
 
   while true:
     result.sftp_session = sftp_init(ssh.session)
-    if result.sftp_session == nil and ssh.session.sessionLastError(nil, 0, 0) == LIBSSH2_ERROR_EAGAIN:
+    if result.sftp_session == nil and ssh.session.session_last_errno() == LIBSSH2_ERROR_EAGAIN:
       discard ssh.waitsocket()
     else:
       break
