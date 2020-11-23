@@ -1,5 +1,6 @@
 import asyncdispatch, strformat, os, posix, posix_utils
 import libssh2, private/[types, utils, session]
+export SSHException, AuthenticationException, FileNotFoundException
 
 proc initSCPClient*(ssh: SSHClient): SCPClient =
   ## Init new SCPClient instance from a SSHClient
