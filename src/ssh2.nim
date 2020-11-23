@@ -2,6 +2,8 @@ import asyncdispatch, asyncnet, strformat
 from libssh2 import init, free, exit
 import ssh2/private/[agent, channel, types, session]
 
+export agent, channel, types, session
+
 proc newSSHClient*(): SSHClient =
   if init(0) != 0:
     raise newException(SSHException, "libssh2 initialization failed")
