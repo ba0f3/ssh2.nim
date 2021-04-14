@@ -16,7 +16,7 @@ type
     sftp_session*: Sftp
 
   SSHChannel* = object
-    impl*: Channel
+    impl*: libssh2.Channel
     client*: SSHClient
 
   SSHException* = object of IOError
