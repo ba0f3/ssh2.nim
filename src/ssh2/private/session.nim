@@ -1,4 +1,4 @@
-import libssh2, types, strformat, posix
+import os, libssh2, types, strformat, posix
 
 proc initSession*(): Session =
   result = session_init()
@@ -22,6 +22,18 @@ proc authPassword*(session: Session, username, password: string): bool =
       discard
     elif rc < 0:
       raise newException(AuthenticationException, &"Authentication with username {username} and password failed!")
+    else:
+      break
+  result = true
+
+proc authPublicKey*(session: Session; username, pkey: string, passphrase = ""): bool =
+  let pkey = expandTilde(pkey)
+  while true:
+    let rc = session.userauth_publickey_from_file(username, nil, pkey, passphrase)
+    if rc == LIBSSH2_ERROR_EAGAIN:
+      discard
+    elif rc < 0:
+      raise newException(AuthenticationException, &"Authentication with privateKey {pkey} failed!")
     else:
       break
   result = true
