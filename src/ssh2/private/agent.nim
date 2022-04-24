@@ -42,3 +42,6 @@ proc authenticate*(agent: Agent, identity: AgentPublicKey, username: string): bo
 proc close*(agent: Agent) =
   discard agent.agent_disconnect()
   agent.agentFree()
+
+proc close_agent*(agent: Agent) =
+  close(agent)

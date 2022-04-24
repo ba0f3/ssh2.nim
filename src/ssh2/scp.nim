@@ -52,7 +52,7 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
     buffer: array[1024, char]
     f: File
   while true:
-    channel = scp.session.scp_recv2(remotePath, addr stat)
+    channel = scp.session.scp_recv(remotePath, stat)
     if channel != nil:
       break
     elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:
