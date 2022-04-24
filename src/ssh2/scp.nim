@@ -9,7 +9,7 @@ proc initSCPClient*(ssh: SSHClient): SCPClient =
 proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
   ## Upload a file from the local filesystem to the remote SSH server.
   var
-    channel: Channel
+    channel: libssh2.Channel
     buffer: array[1024, char]
     bytesRead: int
     bytesWrite: cint
@@ -46,13 +46,13 @@ proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
 proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
   ## Download a file from the remote SSH server to the local filesystem.
   var
-    channel: Channel
+    channel: libssh2.Channel
     stat: Stat
     bytesRead: int
     buffer: array[1024, char]
     f: File
   while true:
-    channel = scp.session.scp_recv2(remotePath, addr stat)
+    channel = scp.session.scp_recv(remotePath, stat)
     if channel != nil:
       break
     elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:

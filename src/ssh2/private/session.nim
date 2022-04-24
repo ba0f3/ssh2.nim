@@ -53,3 +53,6 @@ proc close*(session: Session) =
   while session.session_disconnect("libssh2 wrapper for Nim, libssh2.nim/core") == LIBSSH2_ERROR_EAGAIN:
     discard
   discard session.session_free()
+
+proc close_session*(session: Session) =
+  close(session)

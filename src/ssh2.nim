@@ -12,7 +12,7 @@ proc newSSHClient*(): SSHClient =
 
 proc disconnect*(ssh: SSHClient) =
   if ssh.session != nil:
-    ssh.session.close()
+    ssh.session.close_session()
     ssh.session = nil
 
   ssh.socket.close()
@@ -33,7 +33,7 @@ proc connect*(s: SSHClient, hostname: string, username: string, port = Port(22),
     for identity in agent.identities:
       if agent.authenticate(identity, username):
         break
-    agent.close()
+    agent.close_agent()
   else:
     if pkey.len != 0:
       discard s.session.authPublicKey(username, pkey, password)
