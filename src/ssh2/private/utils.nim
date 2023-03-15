@@ -1,4 +1,9 @@
-import libssh2, types, posix, asyncnet
+import libssh2, types, asyncnet
+
+when defined(windows):
+  import winlean
+else:
+  import posix
 
 proc waitsocket*(session: Session, socket: AsyncSocket): int =
   var
@@ -8,7 +13,7 @@ proc waitsocket*(session: Session, socket: AsyncSocket): int =
     readfd: TFdSet
     dir: int
 
-  timeout.tv_sec = 10.Time
+  timeout.tv_sec = 10
   timeout.tv_usec = 0
 
   FD_ZERO(fd)
