@@ -1,4 +1,9 @@
-import os, libssh2, types, strformat, posix
+import os, libssh2, types, strformat
+
+when defined(windows):
+  import winlean
+else:
+  import posix
 
 proc initSession*(): Session =
   result = session_init()
