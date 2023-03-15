@@ -18,7 +18,7 @@ proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
     raise newException(FileNotFoundException, &"{localPath}: No such file or directory")
   let st = stat(localPath)
   while true:
-    channel = scp.session.scp_send(remotePath, st.st_mode.int and 0777, st.st_size)
+    channel = scp.session.scp_send(remotePath, st.st_mode.int and 0777, st.st_size.int)
     if channel != nil: break
     elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:
       let errmsg = scp.session.getLastErrorMessage()
@@ -66,7 +66,7 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
     while true:
       var
         bytesToRead = buffer.len
-        bytesLeft = stat.st_size - bytesRead
+        bytesLeft = stat.st_size.int - bytesRead
       if bytesLeft < bytesToRead:
         bytesToRead = bytesLeft
       #zeroMem(addr buffer, buffer.len)

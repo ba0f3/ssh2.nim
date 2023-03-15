@@ -55,9 +55,11 @@ proc put*(client: SFTPClient, localPath, remotePath: string) {.async.} =
   discard handle.sftp_close()
 
 proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
+  const blockSize = 1024
   var
     handle: SftpHandle
-    buffer: array[1024, char]
+    s: cstring
+    buffer: array[blockSize, char]
     bytesRead: int
     f: File
   while true:
@@ -75,9 +77,11 @@ proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
   defer: f.close()
 
   while true:
-    let rc = handle.sftp_read(addr buffer, buffer.len)
+    s = cast[cstring](create(char, blockSize + 1))
+    moveMem(addr s, addr buffer, blockSize)
+    let rc = handle.sftp_read(addr s, blockSize)
     if rc > 0:
-      let bytesWrite = f.writeBuffer(addr buffer, rc)
+      let bytesWrite = f.writeBuffer(addr s, rc)
       if bytesWrite != rc:
         raise newException(SSHException, &"sftp: fail to write data: {bytesWrite} wrote, {rc} expected")
       inc(bytesRead, rc)
@@ -87,7 +91,7 @@ proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
       break
   discard handle.sftp_close()
 
-proc mkdir*(client: SFTPClient, path: string, mode: int32 = 0) =
+proc mkdir*(client: SFTPClient, path: string, mode: uint64 = 0) =
   ## create a directory on the remote file system
   var mode = mode
   if mode == 0:
@@ -112,7 +116,7 @@ iterator items*(client: SFTPClient, path: string): tuple[name: string, attribute
     handle: SftpHandle
     rc: cint
   while true:
-    handle = client.sftp_session.sftp_opendir(path)
+    handle = client.sftp_session.sftp_opendir(path, flags = 0, mode = 0)
     if handle != nil: break
     elif client.session.session_last_errno() == LIBSSH2_ERROR_EAGAIN:
       discard waitsocket(client.session, client.socket)
@@ -121,24 +125,26 @@ iterator items*(client: SFTPClient, path: string): tuple[name: string, attribute
       discard handle.sftp_close()
       discard client.sftp_session.sftp_shutdown()
       raise newException(SSHException, &"sftp: {path}: {errmsg}")
-
+  
   while true:
+    const blockSize = 512
     var
-      name: array[512, char]
+      s: cstring
+      name: array[blockSize, char]
       attrs: SftpAttributes
     while true:
-      rc = handle.sftp_readdir(addr name, name.len, addr attrs)
+      s = cast[cstring](create(char, blockSize + 1))
+      moveMem(addr s, addr name, blockSize)
+      rc = handle.sftp_readdir(addr s, blockSize, addr attrs)
       if rc != LIBSSH2_ERROR_EAGAIN:
         break
     if rc > 0:
-      yield ($cast[cstring](addr name), attrs)
+      yield ($cast[cstring](addr s), attrs)
     elif rc == LIBSSH2_ERROR_EAGAIN:
       discard
     else:
       break
 
 proc dir*(client: SFTPClient, path: string): Future[seq[tuple[name: string, attributes: SftpAttributes]]] {.async.} =
-
-  result = @[]
   for item in client.items(path):
     result.add(item)
