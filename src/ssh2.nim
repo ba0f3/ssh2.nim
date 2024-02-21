@@ -18,7 +18,7 @@ proc disconnect*(ssh: SSHClient) =
   ssh.socket.close()
   libssh2.exit()
 
-proc connect*(s: SSHClient, hostname: string, username: string, port = Port(22), password = "", pkey = "", useAgent = false) {.async.} =
+proc connect*(s: SSHClient, hostname: string, username: string, port = Port(22), password = "", privKey = "", pubKey = "", useAgent = false) {.async.} =
   s.socket = newAsyncSocket()
   await s.socket.connect(hostname, port)
   s.session = initSession()
@@ -35,8 +35,8 @@ proc connect*(s: SSHClient, hostname: string, username: string, port = Port(22),
         break
     agent.close_agent()
   else:
-    if pkey.len != 0:
-      discard s.session.authPublicKey(username, pkey, password)
+    if privKey.len != 0:
+      discard s.session.authPublicKey(username, privKey, pubKey, password)
     else:
       discard s.session.authPassword(username, password)
 

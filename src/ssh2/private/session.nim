@@ -31,14 +31,18 @@ proc authPassword*(session: Session, username, password: string): bool =
       break
   result = true
 
-proc authPublicKey*(session: Session; username, pkey: string, passphrase = ""): bool =
-  let pkey = expandTilde(pkey)
+proc authPublicKey*(session: Session; username, privKey: string, pubKey = "", passphrase = ""): bool =
+  let privKey = expandTilde(privKey)
+  var pubKey = pubKey
+  if pubKey.len > 0:
+    pubKey = expandTilde(pubKey)
+
   while true:
-    let rc = session.userauth_publickey_from_file(username, nil, pkey, passphrase)
+    let rc = session.userauth_publickey_from_file(username, pubKey, privKey, passphrase)
     if rc == LIBSSH2_ERROR_EAGAIN:
       discard
     elif rc < 0:
-      raise newException(AuthenticationException, &"Authentication with privateKey {pkey} failed!")
+      raise newException(AuthenticationException, &"Authentication with privateKey {privKey} failed!")
     else:
       break
   result = true
