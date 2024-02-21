@@ -1,4 +1,4 @@
-import libssh2, types, session, utils
+import libssh2, types, session, utils, streams
 
 proc initChannel*(ssh: SSHClient): SSHChannel =
   ## Establish a generic session channel
@@ -28,31 +28,35 @@ proc read*(channel: SSHChannel): string =
   var
     buffer: array[0..1024, char]
     rc: cint
+    stream = newStringStream()
 
   while true:
-    zeroMem(addr buffer, buffer.len)
     rc = channel.impl.channel_read(addr buffer, buffer.len)
     if rc > 0:
-      result.add($cast[cstring](addr buffer))
+      stream.writeData(addr buffer, rc)
     elif rc == LIBSSH2_ERROR_EAGAIN:
       discard waitsocket(channel.client)
     else:
       break
+  stream.setPosition(0)
+  result = stream.readAll()
 
 proc readError*(channel: SSHChannel): string =
   var
     buffer: array[0..1024, char]
     rc: cint
+    stream = newStringStream()
 
   while true:
-    zeroMem(addr buffer, buffer.len)
     rc = channel.impl.channel_read_stderr(addr buffer, buffer.len)
     if rc > 0:
-      result.add($cast[cstring](addr buffer))
+      stream.writeData(addr buffer, rc)
     elif rc == LIBSSH2_ERROR_EAGAIN:
       discard waitsocket(channel.client)
     else:
       break
+  stream.setPosition(0)
+  result = stream.readAll()
 
 proc close*(channel: SSHChannel): bool =
   var rc: cint

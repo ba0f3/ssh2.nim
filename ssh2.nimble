@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.5"
+version       = "0.1.6"
 author        = "Huy Doan"
 description   = "SSH, SCP and SFTP client for Nim"
 license       = "MIT"
