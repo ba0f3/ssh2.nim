@@ -52,7 +52,7 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
     buffer: array[1024, char]
     f: File
   while true:
-    channel = scp.session.scp_recv(remotePath, stat)
+    channel = scp.session.scp_recv(remotePath, addr stat)
     if channel != nil:
       break
     elif scp.session.session_last_errno() != LIBSSH2_ERROR_EAGAIN:
@@ -69,7 +69,6 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
         bytesLeft = stat.st_size.int - bytesRead
       if bytesLeft < bytesToRead:
         bytesToRead = bytesLeft
-      #zeroMem(addr buffer, buffer.len)
       let rc = channel.channel_read(addr buffer, bytesToRead)
       if rc > 0:
         let bytesWrite = f.writeBuffer(addr buffer, rc)
@@ -81,6 +80,3 @@ proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
       else:
         break
   discard channel.channel_free()
-
-
-
