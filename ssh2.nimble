@@ -10,4 +10,4 @@ srcDir        = "src"
 
 # Dependencies
 
-requires "nim >= 1.0.6", "libssh2 >= 0.1.7"
+requires "nim >= 1.0.6", "libssh2 >= 0.1.8"
