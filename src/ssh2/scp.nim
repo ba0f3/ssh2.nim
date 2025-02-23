@@ -1,13 +1,63 @@
+## SCP (Secure Copy Protocol) Implementation
+## ========================================
+##
+## This module provides SCP functionality for secure file transfers between local and remote systems.
+## It implements both upload and download capabilities using the SSH protocol.
+##
+## Example
+## -------
+##
+## ```nim
+## import asyncdispatch
+## import ssh2
+## import ssh2/scp
+##
+## proc main() {.async.} =
+##   let ssh = newSSHClient()
+##   try:
+##     await ssh.connect("example.com", "user", password = "pass")
+##     let scp = initSCPClient(ssh)
+##
+##     # Upload a file
+##     await scp.uploadFile("local.txt", "/remote/path/file.txt")
+##
+##     # Download a file
+##     await scp.downloadFile("/remote/path/file.txt", "local_copy.txt")
+##   finally:
+##     ssh.disconnect()
+##
+## waitFor main()
+## ```
+##
+
 import asyncdispatch, strformat, os, posix, posix_utils
 import libssh2, private/[types, utils, session]
 
 proc initSCPClient*(ssh: SSHClient): SCPClient =
-  ## Init new SCPClient instance from a SSHClient
+  ## Creates a new SCP client from an existing SSH connection.
+  ##
+  ## Parameters:
+  ##   ssh: An authenticated SSHClient instance
+  ##
+  ## Returns:
+  ##   A new SCPClient instance ready for file transfers
+  ##
+  ## Note: The SSH connection must be established before creating an SCP client.
   result.session = ssh.session
   result.socket = ssh.socket
 
 proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
-  ## Upload a file from the local filesystem to the remote SSH server.
+  ## Uploads a file from the local system to the remote server using SCP.
+  ##
+  ## Parameters:
+  ##   localPath: Path to the local file to upload
+  ##   remotePath: Destination path on the remote server
+  ##
+  ## Raises:
+  ##   FileNotFoundException: If the local file doesn't exist
+  ##   SSHException: If the transfer fails
+  ##
+  ## Note: File permissions are preserved during transfer
   var
     channel: libssh2.Channel
     buffer: array[1024, char]
@@ -44,7 +94,16 @@ proc uploadFile*(scp: SCPClient, localPath, remotePath: string) {.async.} =
   discard channel.channel_free()
 
 proc downloadFile*(scp: SCPClient, remotePath, localPath: string) {.async.} =
-  ## Download a file from the remote SSH server to the local filesystem.
+  ## Downloads a file from the remote server to the local system using SCP.
+  ##
+  ## Parameters:
+  ##   remotePath: Path to the file on the remote server
+  ##   localPath: Destination path on the local system
+  ##
+  ## Raises:
+  ##   SSHException: If the file doesn't exist or transfer fails
+  ##
+  ## Note: File permissions from the remote file are preserved
   var
     channel: libssh2.Channel
     stat: Stat

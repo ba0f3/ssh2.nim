@@ -1,10 +1,63 @@
+## SFTP (SSH File Transfer Protocol) Implementation
+## =============================================
+##
+## This module provides SFTP functionality for secure file operations over SSH.
+## It supports file transfers, directory operations, and file system manipulation.
+##
+## Example
+## -------
+##
+## ```nim
+## import asyncdispatch
+## import ssh2
+## import ssh2/sftp
+##
+## proc main() {.async.} =
+##   let ssh = newSSHClient()
+##   try:
+##     await ssh.connect("example.com", "user", password = "pass")
+##     var sftp = initSFTPClient(ssh)
+##     defer: sftp.close()
+##
+##     # Create a directory
+##     sftp.mkdir("/remote/new_dir")
+##
+##     # Upload a file
+##     await sftp.put("local.txt", "/remote/new_dir/file.txt")
+##
+##     # Download a file
+##     await sftp.get("/remote/new_dir/file.txt", "local_copy.txt")
+##
+##     # List directory contents
+##     let files = await sftp.dir("/remote/new_dir")
+##     for file in files:
+##       echo "Name: ", file.name
+##       echo "Size: ", file.attributes.filesize
+##   finally:
+##     ssh.disconnect()
+##
+## waitFor main()
+## ```
+##
+
 import asyncdispatch, strformat, os, posix, posix_utils
 import libssh2, private/[types, utils, session]
 
 export SftpAttributes
 
 proc initSFTPClient*(ssh: SSHClient): SFTPClient =
-  ## Init new SCPClient instance from a SSHClient
+  ## Creates a new SFTP client from an existing SSH connection.
+  ##
+  ## Parameters:
+  ##   ssh: An authenticated SSHClient instance
+  ##
+  ## Returns:
+  ##   A new SFTPClient instance ready for file operations
+  ##
+  ## Raises:
+  ##   SSHException: If SFTP session initialization fails
+  ##
+  ## Note: The SSH connection must be established before creating an SFTP client.
   result.session = ssh.session
   result.socket = ssh.socket
 
@@ -18,7 +71,13 @@ proc initSFTPClient*(ssh: SSHClient): SFTPClient =
     raise newException(SSHException, ssh.session.getLastErrorMessage())
 
 proc close*(client: var SFTPClient) =
-  discard client.sftp_session.sftp_shutdown()
+  ## Closes the SFTP session and frees associated resources.
+  ##
+  ## Parameters:
+  ##   client: The SFTP client to close
+  ##
+  ## Note: Always close the SFTP session when done to free resources.
+discard client.sftp_session.sftp_shutdown()
   client.sftp_session = nil
 
 proc put*(client: SFTPClient, localPath, remotePath: string) {.async.} =
@@ -55,6 +114,37 @@ proc put*(client: SFTPClient, localPath, remotePath: string) {.async.} =
   discard handle.sftp_close()
 
 proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
+  ## Downloads a file from the remote server to the local system using SFTP.
+  ##
+  ## Parameters:
+  ##   remotePath: Path to the file on the remote server
+  ##   localPath: Destination path on the local system where the file will be saved
+  ##
+  ## The procedure will:
+  ## * Open the remote file in read mode
+  ## * Create or overwrite the local file
+  ## * Transfer the file contents in blocks
+  ## * Automatically handle large files by using buffered transfer
+  ##
+  ## Raises:
+  ##   SSHException: If the remote file doesn't exist or is not accessible
+  ##   SSHException: If there are permission issues
+  ##   SSHException: If the transfer fails or is interrupted
+  ##   IOError: If the local file cannot be created or written to
+  ##
+  ## Example:
+  ##   ```nim
+  ##   let sftp = initSFTPClient(ssh)
+  ##   try:
+  ##     await sftp.get("/remote/data.txt", "local_data.txt")
+  ##     echo "File downloaded successfully"
+  ##   except SSHException as e:
+  ##     echo "Download failed: ", e.msg
+  ##   ```
+  ##
+  ## Note: The procedure uses a block size of 1024 bytes for efficient
+  ## transfer and memory usage. The transfer is done asynchronously
+  ## to prevent blocking the main thread.
   const blockSize = 1024
   var
     handle: SftpHandle
@@ -92,7 +182,13 @@ proc get*(client: SFTPClient, remotePath, localPath: string) {.async.} =
   discard handle.sftp_close()
 
 proc mkdir*(client: SFTPClient, path: string, mode: uint64 = 0) =
-  ## create a directory on the remote file system
+  ## Creates a directory on the remote file system.
+  ##
+  ## Parameters:
+  ##   path: Path where to create the directory
+  ##   mode: Unix-style permission mode (default: rwxr-xr-x)
+  ##
+  ## Note: If mode is 0, default permissions (0755) will be used
   var mode = mode
   if mode == 0:
     mode = LIBSSH2_SFTP_S_IRWXU or LIBSSH2_SFTP_S_IRGRP or LIBSSH2_SFTP_S_IXGRP or LIBSSH2_SFTP_S_IROTH or LIBSSH2_SFTP_S_IXOTH
@@ -100,18 +196,44 @@ proc mkdir*(client: SFTPClient, path: string, mode: uint64 = 0) =
   wait(client.sftp_session.sftp_mkdir(path, mode))
 
 proc rmdir*(client: SFTPClient, path: string) =
-  ## remove an SFTP directory
+  ## Removes a directory from the remote file system.
+  ##
+  ## Parameters:
+  ##   path: Path to the directory to remove
+  ##
+  ## Note: Directory must be empty to be removed
   wait(client.sftp_session.sftp_rmdir(path))
 
 proc unlink*(client: SFTPClient, path: string) =
-  ## unlink an SFTP file
+  ## Removes a file from the remote file system.
+  ##
+  ## Parameters:
+  ##   path: Path to the file to remove
   wait(client.sftp_session.sftp_unlink(path))
 
 proc rename*(client: SFTPClient, sourcefile, destfile: string) {.async.} =
-  ## rename an SFTP file
+  ## Renames or moves a file on the remote file system.
+  ##
+  ## Parameters:
+  ##   sourcefile: Current path of the file
+  ##   destfile: New path for the file
   wait(client.sftp_session.sftp_rename(sourcefile, destfile))
 
 iterator items*(client: SFTPClient, path: string): tuple[name: string, attributes: SftpAttributes] =
+  ## Iterates over the contents of a remote directory.
+  ##
+  ## Parameters:
+  ##   path: Path to the directory to list
+  ##
+  ## Returns:
+  ##   Iterator yielding tuples containing file names and their attributes
+  ##
+  ## Example:
+  ##   ```nim
+  ##   for item in sftp.items("/remote/dir"):
+  ##     echo "File: ", item.name
+  ##     echo "Size: ", item.attributes.filesize
+  ##   ```
   var
     handle: SftpHandle
     rc: cint
@@ -125,7 +247,7 @@ iterator items*(client: SFTPClient, path: string): tuple[name: string, attribute
       discard handle.sftp_close()
       discard client.sftp_session.sftp_shutdown()
       raise newException(SSHException, &"sftp: {path}: {errmsg}")
-  
+
   while true:
     const blockSize = 512
     var
@@ -146,5 +268,20 @@ iterator items*(client: SFTPClient, path: string): tuple[name: string, attribute
       break
 
 proc dir*(client: SFTPClient, path: string): Future[seq[tuple[name: string, attributes: SftpAttributes]]] {.async.} =
+  ## Lists the contents of a remote directory asynchronously.
+  ##
+  ## Parameters:
+  ##   path: Path to the directory to list
+  ##
+  ## Returns:
+  ##   Sequence of tuples containing file names and their attributes
+  ##
+  ## Example:
+  ##   ```nim
+  ##   let files = await sftp.dir("/remote/dir")
+  ##   for file in files:
+  ##     echo "Name: ", file.name
+  ##     echo "Size: ", file.attributes.filesize
+  ##   ```
   for item in client.items(path):
     result.add(item)
