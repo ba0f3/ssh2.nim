@@ -38,7 +38,7 @@ proc authPublicKey*(session: Session; username, privKey: string, pubKey = "", pa
     pubKey = expandTilde(pubKey)
 
   while true:
-    let rc = session.userauth_publickey_from_file(username, pubKey, privKey, passphrase)
+    let rc = session.userauth_publickey_from_file(username, pubKey.cstring, privKey.cstring, passphrase)
     if rc == LIBSSH2_ERROR_EAGAIN:
       discard
     elif rc < 0:

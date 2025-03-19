@@ -49,12 +49,6 @@ export SSHException, AuthenticationException
 
 export agent, channel, types, session
 
-type SSHClient* = ref object
-  ## A high-level SSH client that manages connections and sessions
-  ## Use `newSSHClient()` to create a new instance
-  socket: AsyncSocket
-  session: Session
-
 proc newSSHClient*(): SSHClient =
   ## Creates a new SSH client and initializes the underlying libssh2 library.
   ## Raises SSHException if initialization fails.
@@ -102,6 +96,7 @@ proc connect*(s: SSHClient, hostname: string, username: string, port = Port(22),
   ##   SSHException: On connection or handshake failure
   ##   AuthenticationException: On authentication failure
   s.socket = newAsyncSocket()
+  s.socket.setSockOpt(OptNoDelay, true, level = 6)
   await s.socket.connect(hostname, port)
   s.session = initSession()
   s.session.setBlocking(false)

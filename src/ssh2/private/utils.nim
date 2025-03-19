@@ -12,8 +12,10 @@ proc waitsocket*(session: Session, socket: AsyncSocket): int =
     writefd: TFdSet
     readfd: TFdSet
     dir: int
-
-  timeout.tv_sec = 10.Time
+  when defined(windows):
+    timeout.tv_sec = 10
+  else:
+    timeout.tv_sec = 10.Time
   timeout.tv_usec = 0
 
   FD_ZERO(fd)
