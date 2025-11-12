@@ -46,7 +46,7 @@ proc main() {.async.} =
     await ssh.connect("example.com", "username", password = "password")
 
     # Execute a command
-    let (output, exitCode) = await ssh.execute("ls -la")
+    let (output, errorOutput, exitCode) = await ssh.execCommand("ls -la")
     echo "Command output: ", output
 
     # Upload a file using SCP
@@ -116,7 +116,7 @@ The library uses Nim's exception system for error handling:
 ```nim
 try:
 await ssh.connect("host", "user", password = "pass")
-let (output, code) = await ssh.execute("command")
+let (output, errorOutput, code) = await ssh.execCommand("command")
 except SSHException as e:
 echo "SSH error: ", e.msg
 except IOError as e:
